@@ -7,7 +7,7 @@ from clvm.casts import int_from_bytes
 from clvm.EvalError import EvalError
 from clvm.operators import OPERATOR_LOOKUP
 from clvm.serialize import sexp_from_stream, sexp_to_stream
-from clvm_rs import STRICT_MODE as MEMPOOL_MODE, run_salvia_program, serialized_length, run_generator2
+from clvm_rs import STRICT_MODE as MEMPOOL_MODE, deserialize_and_run_program2, serialized_length, run_generator2
 from clvm_tools.curry import curry, uncurry
 
 from salvia.types.blockchain_format.sized_bytes import bytes32
@@ -279,9 +279,16 @@ class SerializedProgram:
         else:
             serialized_args += _serialize(args[0])
 
-        cost, ret = run_salvia_program(
+        # TODO: move this ugly magic into `clvm` "dialects"
+        native_opcode_names_by_opcode = dict(
+            ("op_%s" % OP_REWRITE.get(k, k), op) for op, k in KEYWORD_FROM_ATOM.items() if k not in "qa."
+        )
+        cost, ret = deserialize_and_run_program2(
             self._buf,
             serialized_args,
+            KEYWORD_TO_ATOM["q"][0],
+            KEYWORD_TO_ATOM["a"][0],
+            native_opcode_names_by_opcode,
             max_cost,
             flags,
         )
