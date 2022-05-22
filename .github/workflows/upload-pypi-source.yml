@@ -1,9 +1,10 @@
 name: Upload source distribution
 
 on:
-  push:
-    tags:
-      - '*'
+  #push:
+  #  tags:
+  #    - '*'
+  workflow_dispatch:
 
 jobs:
   upload_source_dist:
