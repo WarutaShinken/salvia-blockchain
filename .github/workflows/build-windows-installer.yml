@@ -144,7 +144,7 @@ jobs:
       uses: actions/upload-artifact@v2.2.2
       with:
         name: Windows-Exe
-        path: ${{ github.workspace }}\salvia-blockchain-gui\Chia-win32-x64\
+        path: ${{ github.workspace }}\salvia-blockchain-gui\Salvia-win32-x64\
 
     - name: Upload Installer to artifacts
       uses: actions/upload-artifact@v2.2.2
@@ -156,7 +156,7 @@ jobs:
       env:
         SALVIA_INSTALLER_VERSION: ${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}
       run: |
-         certutil.exe -hashfile ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\ChiaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe SHA256 > ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\ChiaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe.sha256
+         certutil.exe -hashfile ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\SalviaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe SHA256 > ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\SalviaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe.sha256
          ls ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\
 
     - name: Get tag name
