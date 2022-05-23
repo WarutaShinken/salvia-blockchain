@@ -2,13 +2,17 @@ name: Windows Installer on Windows 10 and Python 3.9
 
 on:
   #push:
+  #  branches:
+  #    - main
   #  tags:
-  #    - '*'
+  #      - '**'
+  #pull_request:
+  #  branches:
+  #    - '**'
   workflow_dispatch:
 
 jobs:
   build:
-    #if: ${{ startsWith(github.ref, 'refs/tags/') }}
     name: Windows Installer on Windows 10 and Python 3.9
     runs-on: [windows-2019]
     timeout-minutes: 40
@@ -63,16 +67,11 @@ jobs:
       shell: bash
       run: |
         unset HAS_SIGNING_SECRET
-        unset HAS_AWS_SECRET
 
         if [ -n "$SIGNING_SECRET" ]; then HAS_SIGNING_SECRET='true' ; fi
         echo "::set-output name=HAS_SIGNING_SECRET::${HAS_SIGNING_SECRET}"
-
-        if [ -n "$AWS_SECRET" ]; then HAS_AWS_SECRET='true' ; fi
-        echo ::set-output name=HAS_AWS_SECRET::${HAS_AWS_SECRET}
       env:
         SIGNING_SECRET: "${{ secrets.WIN_CODE_SIGN_CERT }}"
-        AWS_SECRET: "${{ secrets.INSTALLER_UPLOAD_KEY }}"
 
     - name: Decode code signing cert into an encrypted file
       if: steps.check_secrets.outputs.HAS_SIGNING_SECRET
@@ -92,8 +91,8 @@ jobs:
         echo "$env:SALVIA_INSTALLER_VERSION"
         echo "::set-output name=SALVIA_INSTALLER_VERSION::$env:SALVIA_INSTALLER_VERSION"
         deactivate
-        
-    # Get the most recent release from chia-plotter-madmax
+
+      # Get the most recent release from chia-plotter-madmax
     - uses: actions/github-script@v4
       id: 'latest-madmax'
       with:
@@ -105,13 +104,14 @@ jobs:
             repo: 'chia-plotter-madmax',
           });
           return releases.data[0].tag_name;
+
     - name: Get latest madmax plotter
       run: |
         mkdir "$env:GITHUB_WORKSPACE\madmax"
-        Invoke-WebRequest https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\salvia_plot.exe"
-        Invoke-WebRequest https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot_k34-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\salvia_plot_k34.exe"
-        
-    # Get the most recent release from bladebit
+        Invoke-WebRequest https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chia_plot.exe"
+        Invoke-WebRequest https://github.com/Chia-Network/chia-plotter-madmax/releases/download/${{ steps.latest-madmax.outputs.result }}/chia_plot_k34-${{ steps.latest-madmax.outputs.result }}.exe -OutFile "$env:GITHUB_WORKSPACE\madmax\chia_plot_k34.exe"
+
+      # Get the most recent release from bladebit
     - uses: actions/github-script@v4
       id: 'latest-bladebit'
       with:
@@ -123,13 +123,14 @@ jobs:
             repo: 'bladebit',
           });
           return releases.data[0].tag_name;
+
     - name: Get latest bladebit plotter
       run: |
         mkdir "$env:GITHUB_WORKSPACE\bladebit"
         Invoke-WebRequest https://github.com/Chia-Network/bladebit/releases/download/${{ steps.latest-bladebit.outputs.result }}/bladebit-${{ steps.latest-bladebit.outputs.result }}-windows-x86-64.zip -OutFile "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
         Expand-Archive -Path "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip" -DestinationPath "$env:GITHUB_WORKSPACE\bladebit\"
         rm "$env:GITHUB_WORKSPACE\bladebit\bladebit.zip"
-        
+
     - name: Build Windows installer with build_scripts\build_windows.ps1
       env:
         WIN_CODE_SIGN_PASS: ${{ secrets.WIN_CODE_SIGN_PASS }}
@@ -143,7 +144,7 @@ jobs:
       uses: actions/upload-artifact@v2.2.2
       with:
         name: Windows-Exe
-        path: ${{ github.workspace }}\salvia-blockchain-gui\Salvia-win32-x64\
+        path: ${{ github.workspace }}\salvia-blockchain-gui\Chia-win32-x64\
 
     - name: Upload Installer to artifacts
       uses: actions/upload-artifact@v2.2.2
@@ -152,18 +153,27 @@ jobs:
         path: ${{ github.workspace }}\salvia-blockchain-gui\release-builds\
 
     - name: Create Checksums
-      if: startsWith(github.ref, 'refs/tags/')
       env:
         SALVIA_INSTALLER_VERSION: ${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}
       run: |
-         certutil.exe -hashfile ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\SalviaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe SHA256 > ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\SalviaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe.sha256
+         certutil.exe -hashfile ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\ChiaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe SHA256 > ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\ChiaSetup-${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}.exe.sha256
          ls ${{ github.workspace }}\salvia-blockchain-gui\release-builds\windows-installer\
 
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ${{ github.workspace }}/salvia-blockchain-gui/release-builds/windows-installer/*.exe*
-        tag: ${{ steps.version_number.outputs.SALVIA_INSTALLER_VERSION }}
-        overwrite: true
-        file_glob: true
+    - name: Get tag name
+      if: startsWith(github.ref, 'refs/tags/')
+      id: tag-name
+      run: |
+        echo "::set-output name=TAG_NAME::$(echo ${{ github.ref }} | cut -d'/' -f 3)"
+        echo "::set-output name=REPO_NAME::$(echo ${{ github.repository }} | cut -d'/' -f 2)"
+
+    - name: Mark installer complete
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        $headers = @{
+            Authorization="Bearer ${{ secrets.GLUE_ACCESS_TOKEN }}"
+        }
+        $data = @{
+            salvia_ref='${{ steps.tag-name.outputs.TAG_NAME }}'
+        }
+        $json = $data | ConvertTo-Json
+        $response = Invoke-RestMethod '${{ secrets.GLUE_API_URL }}/api/v1/${{ steps.tag-name.outputs.REPO_NAME }}/${{ steps.tag-name.outputs.TAG_NAME }}/success/build-windows' -Method Post -Body $json -ContentType 'application/json' -Headers $headers

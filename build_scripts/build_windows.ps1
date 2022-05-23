@@ -18,7 +18,7 @@ If ($LastExitCode -gt 0){
 }
 else
 {
-    Set-Location -Path ../../ -PassThru
+    Set-Location -Path - -PassThru
     Write-Output "miniupnpc download successful."
 }
 
@@ -78,20 +78,16 @@ Write-Output "pip install salvia-blockchain"
 pip install --no-index --find-links=.\win_build\ salvia-blockchain
 
 Write-Output "   ---"
-Write-Output "Use pyinstaller to create salvia .exe's"
+Write-Output "Use pyinstaller to create Salvia .exe's"
 Write-Output "   ---"
 $SPEC_FILE = (python -c 'import salvia; print(salvia.PYINSTALLER_SPEC_PATH)') -join "`n"
 pyinstaller --log-level INFO $SPEC_FILE
 
 Write-Output "   ---"
-Write-Output "Copy salvia executables to salvia-blockchain-gui\"
+Write-Output "Copy Salvia executables to salvia-blockchain-gui\"
 Write-Output "   ---"
-Copy-Item "dist\daemon" -Destination "..\salvia-blockchain-gui\packages\gui\" -Recurse
+Copy-Item "dist\daemon" -Destination "..\salvia-blockchain-gui\" -Recurse
 Set-Location -Path "..\salvia-blockchain-gui" -PassThru
-# We need the code sign cert in the gui subdirectory so we can actually sign the UI package
-If ($env:HAS_SECRET) {
-    Copy-Item "win_code_sign_cert.p12" -Destination "packages\gui\"
-}
 
 git status
 
@@ -99,13 +95,10 @@ Write-Output "   ---"
 Write-Output "Prepare Electron packager"
 Write-Output "   ---"
 $Env:NODE_OPTIONS = "--max-old-space-size=3000"
+npm install --save-dev electron-winstaller
 npm install -g electron-packager
-npm install -g lerna
-
-lerna clean -y
 npm install
-# Audit fix does not currently work with Lerna. See https://github.com/lerna/lerna/issues/1663
-# npm audit fix
+npm audit fix
 
 git status
 
@@ -116,9 +109,6 @@ npm run build
 If ($LastExitCode -gt 0){
     Throw "npm run build failed!"
 }
-
-# Change to the GUI directory
-Set-Location -Path "packages\gui" -PassThru
 
 Write-Output "   ---"
 Write-Output "Increase the stack for salvia command for (salvia plots create) chiapos limitations"
@@ -163,12 +153,6 @@ If ($env:HAS_SECRET) {
 }
 
 git status
-
-Write-Output "   ---"
-Write-Output "Moving final installers to expected location"
-Write-Output "   ---"
-Copy-Item ".\Salvia-win32-x64" -Destination "$env:GITHUB_WORKSPACE\salvia-blockchain-gui\" -Recurse
-Copy-Item ".\release-builds" -Destination "$env:GITHUB_WORKSPACE\salvia-blockchain-gui\" -Recurse
 
 Write-Output "   ---"
 Write-Output "Windows Installer complete"
